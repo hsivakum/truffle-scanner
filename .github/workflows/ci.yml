@@ -36,12 +36,15 @@ jobs:
         with:
           name: executable
       - name: move executable to bin folder
-        run: mkdir bin && mv truffle-scanner ./bin/truffle-scanner
+        run: |
+          mkdir bin && mv truffle-scanner ./bin/truffle-scanner
+          ls -lta
 
       - name: build tool
         run: |
           cd .. && git clone https://github.com/hsivakum/trufflehog-v1.git && cd trufflehog-v1 && git checkout trufflehog-v1
           make build
+          ls -lta
           chmod +w ../truffle-scanner/bin
           mv ./bin/trufflehog ../truffle-scanner/bin/trufflehog
 
