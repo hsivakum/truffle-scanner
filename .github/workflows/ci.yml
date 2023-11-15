@@ -39,7 +39,7 @@ jobs:
         run: mkdir bin && mv truffle-scanner ./bin/truffle-scanner
 
       - name: clone trufflehog-v1
-        run: cd .. && make clone_tool
+        run: cd .. && git clone https://github.com/hsivakum/trufflehog-v1.git
 
       - name: build tool
         run: |
