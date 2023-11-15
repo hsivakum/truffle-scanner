@@ -2,6 +2,9 @@ FROM alpine:3.16
 
 ENV HOME /home/scanner
 
+# Install Git
+RUN apk --no-cache add git
+
 # Copy the actual app executable (replace with the actual binary name)
 COPY ./bin/truffle-scanner /usr/local/bin/truffle-scanner
 
