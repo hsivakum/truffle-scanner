@@ -1,0 +1,35 @@
+version: '3.7'
+services:
+
+  build-app-env:
+    image: golang:1.21-alpine3.18
+    environment:
+      - GO111MODULE=on
+      - GOSUMDB=off
+    platform: linux/amd64
+    volumes:
+      - type: volume
+        source: truffle_scanner_dep
+        target: /go
+      - type: bind
+        source: ../
+        target: /truffle-scanner
+    working_dir: /truffle-scanner
+
+  build-truffle-env:
+    image: golang:1.21-alpine3.18
+    environment:
+      - GO111MODULE=on
+      - GOSUMDB=off
+    platform: linux/amd64
+    volumes:
+      - type: volume
+        source: truffle_scanner_dep
+        target: /go
+      - type: bind
+        source: ../
+        target: /trufflehog
+    working_dir: /trufflehog
+
+volumes:
+  truffle_scanner_dep:

@@ -1,0 +1,64 @@
+name: truffle-scanner
+on: [push]
+permissions:
+  contents: read
+jobs:
+  go-build:
+    runs-on: self-hosted
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+      - name: build
+        env:
+          CI_COMMIT_SHA: ${{ github.sha }}
+          CI_COMMIT_TAG: ${{ github.ref }}
+          EXEC_NAME: truffle-scanner
+        run: make build_scanner
+      - name: Step 3 - Use the Upload Artifact GitHub Action
+        uses: actions/upload-artifact@v3
+        with:
+          name: executable
+          path: bin
+  docker:
+    needs: [go-build]
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/dev'
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver: docker
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+      - name: Download a single artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: executable
+      - name: move executable to bin folder
+        run: mkdir bin && mv truffle-scanner ./bin/truffle-scanner
+
+      - name: clone trufflehog-v1
+        run: cd .. && make clone_tool
+
+      - name: build tool
+        run: |
+          cd trufflehog-v1 && git checkout trufflehog-v1
+          make build
+
+      - name: copy tool
+        run: mv ./bin/trufflehog ../truffle-scanner/bin/trufflehog
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: infrastructure/Dockerfile
+          push: true
+          tags: harishsivakumar/truffle-scanner:latest
