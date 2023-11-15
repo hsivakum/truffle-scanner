@@ -13,7 +13,7 @@ jobs:
           CI_COMMIT_SHA: ${{ github.sha }}
           CI_COMMIT_TAG: ${{ github.ref }}
           EXEC_NAME: truffle-scanner
-        run: make build_scanner
+        run: make build
       - name: Step 3 - Use the Upload Artifact GitHub Action
         uses: actions/upload-artifact@v3
         with:
