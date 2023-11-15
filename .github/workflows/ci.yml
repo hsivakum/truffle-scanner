@@ -38,9 +38,6 @@ jobs:
       - name: move executable to bin folder
         run: mkdir bin && mv truffle-scanner ./bin/truffle-scanner
 
-      - name: clone trufflehog-v1
-        run:
-
       - name: build tool
         run: |
           cd .. && git clone https://github.com/hsivakum/trufflehog-v1.git && cd trufflehog-v1 && git checkout trufflehog-v1
