@@ -147,8 +147,9 @@ func runTrufflehog(repoPath string, url string, private bool) (string, error) {
 	}
 
 	// Capture the output from stdout
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("Trufflehog command failed: %v\nCombined output:\n%s", err, output)
 		return "", err
 	}
 
