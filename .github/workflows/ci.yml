@@ -44,9 +44,7 @@ jobs:
         run: |
           cd .. && git clone https://github.com/hsivakum/trufflehog-v1.git && cd trufflehog-v1 && git checkout trufflehog-v1
           make build
-          ls -lta bin/
           chmod +w ../truffle-scanner/bin
-          ls -lta bin/
           sudo mv ./bin/trufflehog ../truffle-scanner/bin/trufflehog
 
       - name: Login to Docker Hub
