@@ -1,15 +1,15 @@
 FROM alpine:3.16
 
-COPY ./bin/truffle-scanner /truffle-scanner
-COPY ./bin/trufflehog /trufflehog
+# Copy the actual app executable (replace with the actual binary name)
+COPY ./bin/truffle-scanner /usr/local/bin/truffle-scanner
 
-RUN chmod +x /truffle-scanner
+RUN chmod +x /usr/local/bin/truffle-scanner
 
-# Create a user home directory
-ENV HOME /home/scanner
-RUN mkdir -p $HOME
+# Copy the Trufflehog executable to a directory in the PATH
+COPY ./bin/trufflehog /usr/local/bin/
 
-# Add the directory to the PATH
-ENV PATH="${HOME}:${PATH}"
+# Add the Trufflehog path to the PATH variable
+ENV PATH="/usr/local/bin:${PATH}"
 
-CMD ["/truffle-scanner"]
+# Expose the CMD as the actual app executable
+CMD ["truffle-scanner"]

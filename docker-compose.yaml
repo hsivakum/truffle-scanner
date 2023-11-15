@@ -1,11 +1,8 @@
 version: '3'
 services:
   truffle-scanner:
-    image: truffle-scanner:latest
+    image: harishsivakumar/truffle-scanner:latest
     container_name: truffle-scanner
-    build:
-      context: .
-      dockerfile: infrastructure/Dockerfile
     volumes:
       - ./clones:/home/scanner
     env_file:
