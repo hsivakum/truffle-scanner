@@ -141,6 +141,11 @@ func runTrufflehog(repoPath string, url string, private bool) (string, error) {
 		cmd = exec.Command("trufflehog", "--no-verification", "--json", "git", url)
 	}
 
+	if cmd.Err != nil {
+		log.Printf("Unable to run trufflehog %v", cmd.Err)
+		return "", cmd.Err
+	}
+
 	// Capture the output from stdout
 	output, err := cmd.Output()
 	if err != nil {
