@@ -218,6 +218,9 @@ func main() {
 	log.Println(results)
 	var scanResults []ScanResult
 	for _, detectedSecret := range results {
+		if len(strings.TrimSpace(detectedSecret.DetectorName)) == 0 {
+			continue
+		}
 		now := time.Now()
 		scanResults = append(scanResults, ScanResult{
 			ScanID:             scanID,
