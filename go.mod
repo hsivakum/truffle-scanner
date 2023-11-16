@@ -5,6 +5,7 @@ go 1.21.1
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys v1.0.1
+	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets v1.0.1
 )
 
 require (

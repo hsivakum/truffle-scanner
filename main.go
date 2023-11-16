@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,12 +12,82 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
+
 	// Import the necessary PostgreSQL client package(s)
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 
 	"truffle-scanner/constants"
 )
+
+type ScanResult struct {
+	ScanID             string     `json:"scanID"`
+	File               string     `json:"file"`
+	URL                string     `json:"url"`
+	CommitSHA          string     `json:"commitSHA"`
+	RedactedSecret     string     `json:"redactedSecret"`
+	DetectorName       string     `json:"detectorName"`
+	IsVerified         bool       `json:"isVerified"`
+	ScanCompletionTime *time.Time `json:"scanCompletionTime"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	ModifiedAt         *time.Time `json:"modifiedAt"`
+	DeletedAt          *time.Time `json:"deletedAt"`
+}
+
+func insertIntoDB(db *sql.DB, results []ScanResult) error {
+	// Prepare the query template
+	query := `
+		INSERT INTO scan_results (
+			scan_id, file, url, commit_sha, redacted_secret, detector_name, is_verified, scan_completion_time
+		) VALUES %s`
+
+	// Create a slice to hold the values for multiple rows
+	var values []interface{}
+
+	// Create a slice to hold the value placeholders for a single row
+	valuePlaceholders := make([]string, 0, len(results))
+	for i, result := range results {
+		valuePlaceholders = append(valuePlaceholders,
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				(i*8)+1, (i*8)+2, (i*8)+3, (i*8)+4, (i*8)+5, (i*8)+6, (i*8)+7, (i*8)+8))
+		values = append(values,
+			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret,
+			result.DetectorName, result.IsVerified, result.ScanCompletionTime,
+		)
+	}
+
+	valuesBinding := strings.Join(valuePlaceholders, ",")
+	query = fmt.Sprintf(query, valuesBinding)
+
+	// Execute the query
+	_, err := db.Exec(query, values...)
+	if err != nil {
+		log.Println("Error inserting into database:", err)
+		return err
+	}
+
+	return nil
+}
+
+func updateStatus(db *sql.DB, status string, scanID string) error {
+	// Prepare the SQL statement
+	query := `UPDATE scan_requests
+		SET queue_status = $1, modified_at = current_timestamp
+		WHERE scan_id = $2`
+
+	// Execute the SQL statement
+	var id string
+	_, err := db.Exec(query, status, scanID)
+	if err != nil {
+		log.Println("Error updating status in database:", err)
+		return err
+	}
+
+	fmt.Printf("Updated status for scan ID %s. Row ID: %s\n", scanID, id)
+	return nil
+}
 
 type DetectedSecret struct {
 	SourceMetadata struct {
@@ -48,6 +119,7 @@ type DetectedSecret struct {
 func main() {
 	// Consume environment variables
 	repoURL := os.Getenv("URL")
+	scanID := os.Getenv("SCAN_ID")
 	isPrivate, err := strconv.ParseBool(os.Getenv("IS_PRIVATE"))
 	if err != nil {
 		log.Panicln(err)
@@ -59,6 +131,37 @@ func main() {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		panic(err)
+	}
+
+	azSecretsClient, err := azsecrets.NewClient(keyVaultURL, cred, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	secret, err := azSecretsClient.GetSecret(context.TODO(), "DB-PASSWORD", "", &azsecrets.GetSecretOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	// PostgreSQL connection details
+	dbInfo := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(os.Getenv("DB_USER"), *secret.Value),
+		Host:     fmt.Sprintf("%s:%s", os.Getenv("DB_HOST"), os.Getenv("DB_PORT")),
+		Path:     os.Getenv("DB_NAME"),
+		RawQuery: "sslmode=disable",
+	}
+
+	// Connect to the database
+	db, err := sql.Open("postgres", dbInfo.String())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// Check the connection
+	if err := db.Ping(); err != nil {
+		log.Fatal(err)
 	}
 
 	azkeysClient, err := azkeys.NewClient(keyVaultURL, cred, nil)
@@ -103,20 +206,44 @@ func main() {
 	// Parse the JSON output from Trufflehog
 	results, err := parseTrufflehogOutput(output)
 	if err != nil {
+		err = updateStatus(db, "Failed", scanID)
+		if err != nil {
+			log.Printf("Unable to insert scan result records %v", err)
+			return
+		}
 		log.Fatal("Failed to parse Trufflehog output:", err)
 	}
 
 	log.Println(results)
+	var scanResults []ScanResult
+	for _, detectedSecret := range results {
+		now := time.Now()
+		scanResults = append(scanResults, ScanResult{
+			ScanID:             scanID,
+			File:               detectedSecret.SourceMetadata.Data.Git.File,
+			URL:                repoURL,
+			CommitSHA:          detectedSecret.SourceMetadata.Data.Git.Commit,
+			RedactedSecret:     detectedSecret.Redacted,
+			DetectorName:       detectedSecret.DetectorName,
+			IsVerified:         detectedSecret.Verified,
+			ScanCompletionTime: &now,
+		})
+	}
+
+	err = insertIntoDB(db, scanResults)
+	if err != nil {
+		log.Panicf("Unable to insert scan result records %v", err)
+	}
+
+	err = updateStatus(db, "Processed", scanID)
+	if err != nil {
+		log.Panicf("Unable to insert scan result records %v", err)
+	}
+
+	log.Println("Updated the status to processed")
 	// Construct a PostgreSQL database object and write the parsed data
 	// Replace this with your code to interact with PostgreSQL
 	// Example: saveToDatabase(results)
-}
-
-// Function to decrypt the token using Azure Key Vault SDK
-func decryptToken(encryptedToken string) (string, error) {
-	// Implement decryption logic using Azure Key Vault SDK
-	// Return the decrypted token
-	return "", nil
 }
 
 // Function to clone the repository
