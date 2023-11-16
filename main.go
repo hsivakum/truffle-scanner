@@ -79,14 +79,13 @@ func updateStatus(db *sql.DB, status string, scanID string) error {
 		WHERE scan_id = $2`
 
 	// Execute the SQL statement
-	var id string
 	_, err := db.Exec(query, status, scanID)
 	if err != nil {
 		log.Println("Error updating status in database:", err)
 		return err
 	}
 
-	fmt.Printf("Updated status for scan ID %s. Row ID: %s\n", scanID, id)
+	fmt.Printf("Updated status for scan ID %s.\n", scanID)
 	return nil
 }
 
