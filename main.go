@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
 	// Import the necessary PostgreSQL client package(s)
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
