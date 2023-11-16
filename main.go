@@ -42,7 +42,7 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 	query := `
 		INSERT INTO scan_results (
 			scan_id, file, url, commit_sha, redacted_secret, detector_name, is_verified, scan_completion_time
-		) VALUES %s ON CONFLICT ON CONSTRAINT idx_unique_scan_result DO NOTHING;`
+		) VALUES %s ON CONFLICT DO NOTHING;`
 
 	// Create a slice to hold the values for multiple rows
 	var values []interface{}
