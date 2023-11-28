@@ -215,7 +215,6 @@ func main() {
 		log.Fatal("Failed to parse Trufflehog output:", err)
 	}
 
-	log.Println(results)
 	var scanResults []ScanResult
 	for _, detectedSecret := range results {
 		if len(strings.TrimSpace(detectedSecret.DetectorName)) == 0 {
@@ -285,18 +284,12 @@ func runTrufflehog(repoPath string, url string, private bool) (string, error) {
 		return "", err
 	}
 
-	log.Printf("this is trufflehog output %v", string(output))
-
 	return string(output), nil
 }
 
 // Function to parse Trufflehog output in new line separated JSON format
 func parseTrufflehogOutput(output string) ([]DetectedSecret, error) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-
-	log.Println("===================================================================================")
-
-	log.Printf("after splitting %v \n", lines)
 
 	var results []DetectedSecret
 
