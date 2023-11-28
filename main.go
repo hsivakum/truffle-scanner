@@ -53,7 +53,7 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 	for i, result := range results {
 		valuePlaceholders = append(valuePlaceholders,
 			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				(i*8)+1, (i*8)+2, (i*8)+3, (i*8)+4, (i*8)+5, (i*8)+6, (i*8)+7, (i*8)+8, (i*9)+9))
+				(i*9)+1, (i*9)+2, (i*9)+3, (i*9)+4, (i*9)+5, (i*9)+6, (i*9)+7, (i*9)+8, (i*9)+9))
 		values = append(values,
 			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret, result.Raw,
 			result.DetectorName, result.IsVerified, result.ScanCompletionTime,
