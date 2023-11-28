@@ -29,6 +29,7 @@ type ScanResult struct {
 	URL                string     `json:"url"`
 	CommitSHA          string     `json:"commitSHA"`
 	RedactedSecret     string     `json:"redactedSecret"`
+	Raw                string     `json:"raw"`
 	DetectorName       string     `json:"detectorName"`
 	IsVerified         bool       `json:"isVerified"`
 	ScanCompletionTime *time.Time `json:"scanCompletionTime"`
@@ -41,7 +42,7 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 	// Prepare the query template
 	query := `
 		INSERT INTO scan_results (
-			scan_id, file, url, commit_sha, redacted_secret, detector_name, is_verified, scan_completion_time
+			scan_id, file, url, commit_sha, redacted_secret,raw, detector_name, is_verified, scan_completion_time
 		) VALUES %s ON CONFLICT DO NOTHING;`
 
 	// Create a slice to hold the values for multiple rows
@@ -51,10 +52,10 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 	valuePlaceholders := make([]string, 0, len(results))
 	for i, result := range results {
 		valuePlaceholders = append(valuePlaceholders,
-			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				(i*8)+1, (i*8)+2, (i*8)+3, (i*8)+4, (i*8)+5, (i*8)+6, (i*8)+7, (i*8)+8))
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				(i*8)+1, (i*8)+2, (i*8)+3, (i*8)+4, (i*8)+5, (i*8)+6, (i*8)+7, (i*8)+8, (i*9)+9))
 		values = append(values,
-			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret,
+			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret, result.Raw,
 			result.DetectorName, result.IsVerified, result.ScanCompletionTime,
 		)
 	}
@@ -227,6 +228,7 @@ func main() {
 			URL:                repoURL,
 			CommitSHA:          detectedSecret.SourceMetadata.Data.Git.Commit,
 			RedactedSecret:     detectedSecret.Redacted,
+			Raw:                detectedSecret.Raw,
 			DetectorName:       detectedSecret.DetectorName,
 			IsVerified:         detectedSecret.Verified,
 			ScanCompletionTime: &now,
