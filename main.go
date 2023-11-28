@@ -42,32 +42,49 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 	// Prepare the query template
 	query := `
 		INSERT INTO scan_results (
-			scan_id, file, url, commit_sha, redacted_secret,raw, detector_name, is_verified, scan_completion_time
+			scan_id, file, url, commit_sha, redacted_secret, raw, detector_name, is_verified, scan_completion_time
 		) VALUES %s ON CONFLICT DO NOTHING;`
+
+	// Define the maximum number of parameters supported by PostgreSQL
+	maxParams := 65535
+
+	// Calculate the batch size based on the number of columns and maxParams
+	columnsPerRow := 9
+	batchSize := maxParams / columnsPerRow
 
 	// Create a slice to hold the values for multiple rows
 	var values []interface{}
 
 	// Create a slice to hold the value placeholders for a single row
-	valuePlaceholders := make([]string, 0, len(results))
+	valuePlaceholders := make([]string, 0, len(results)*columnsPerRow)
 	for i, result := range results {
 		valuePlaceholders = append(valuePlaceholders,
 			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				(i*9)+1, (i*9)+2, (i*9)+3, (i*9)+4, (i*9)+5, (i*9)+6, (i*9)+7, (i*9)+8, (i*9)+9))
+				(i*columnsPerRow)+1, (i*columnsPerRow)+2, (i*columnsPerRow)+3,
+				(i*columnsPerRow)+4, (i*columnsPerRow)+5, (i*columnsPerRow)+6,
+				(i*columnsPerRow)+7, (i*columnsPerRow)+8, (i*columnsPerRow)+9))
+
 		values = append(values,
 			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret, result.Raw,
 			result.DetectorName, result.IsVerified, result.ScanCompletionTime,
 		)
-	}
 
-	valuesBinding := strings.Join(valuePlaceholders, ",")
-	query = fmt.Sprintf(query, valuesBinding)
+		// If we reach the batch size or the end of the results, execute the query
+		if (i+1)%batchSize == 0 || i == len(results)-1 {
+			valuesBinding := strings.Join(valuePlaceholders, ",")
+			execQuery := fmt.Sprintf(query, valuesBinding)
 
-	// Execute the query
-	_, err := db.Exec(query, values...)
-	if err != nil {
-		log.Println("Error inserting into database:", err)
-		return err
+			// Execute the query
+			_, err := db.Exec(execQuery, values...)
+			if err != nil {
+				log.Println("Error inserting into database:", err)
+				return err
+			}
+
+			// Reset values and placeholders for the next batch
+			values = nil
+			valuePlaceholders = nil
+		}
 	}
 
 	return nil
