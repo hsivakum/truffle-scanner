@@ -86,7 +86,7 @@ func updateStatus(db *sql.DB, status string, scanID string) error {
 		return err
 	}
 
-	fmt.Printf("Updated status for scan ID %s.\n", scanID)
+	log.Printf("Updated status for scan ID %s.\n", scanID)
 	return nil
 }
 
