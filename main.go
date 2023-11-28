@@ -46,23 +46,24 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 		) VALUES %s ON CONFLICT DO NOTHING;`
 
 	// Define the maximum number of parameters supported by PostgreSQL
-	maxParams := 65535
+	maxParams := int64(65535)
 
 	// Calculate the batch size based on the number of columns and maxParams
-	columnsPerRow := 9
+	columnsPerRow := int64(9)
 	batchSize := maxParams / columnsPerRow
 
 	// Create a slice to hold the values for multiple rows
 	var values []interface{}
 
+	var count int64 = 0
 	// Create a slice to hold the value placeholders for a single row
-	valuePlaceholders := make([]string, 0, len(results)*columnsPerRow)
-	for i, result := range results {
+	valuePlaceholders := make([]string, 0, int64(len(results))*columnsPerRow)
+	for _, result := range results {
 		valuePlaceholders = append(valuePlaceholders,
 			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				(i*columnsPerRow)+1, (i*columnsPerRow)+2, (i*columnsPerRow)+3,
-				(i*columnsPerRow)+4, (i*columnsPerRow)+5, (i*columnsPerRow)+6,
-				(i*columnsPerRow)+7, (i*columnsPerRow)+8, (i*columnsPerRow)+9))
+				(count*columnsPerRow)+1, (count*columnsPerRow)+2, (count*columnsPerRow)+3,
+				(count*columnsPerRow)+4, (count*columnsPerRow)+5, (count*columnsPerRow)+6,
+				(count*columnsPerRow)+7, (count*columnsPerRow)+8, (count*columnsPerRow)+9))
 
 		values = append(values,
 			result.ScanID, result.File, result.URL, result.CommitSHA, result.RedactedSecret, result.Raw,
@@ -70,7 +71,7 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 		)
 
 		// If we reach the batch size or the end of the results, execute the query
-		if (i+1)%batchSize == 0 || i == len(results)-1 {
+		if (count+1)%batchSize == 0 || count == int64(len(results))-1 {
 			valuesBinding := strings.Join(valuePlaceholders, ",")
 			execQuery := fmt.Sprintf(query, valuesBinding)
 
@@ -83,8 +84,12 @@ func insertIntoDB(db *sql.DB, results []ScanResult) error {
 
 			// Reset values and placeholders for the next batch
 			values = nil
+			count = 0
 			valuePlaceholders = nil
+			continue
 		}
+
+		count++
 	}
 
 	return nil
